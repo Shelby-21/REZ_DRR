@@ -28,6 +28,33 @@ def aggregate_by_asin(df, value_columns, asin_column=ASIN_COLUMN):
 
     return df
 
+# ============================================
+# Process Inventory File
+# ============================================
+
+def process_inventory(inv_df):
+
+    # Clean column names
+    inv_df.columns = inv_df.columns.str.strip()
+
+    # Keep only FC Inventory
+    inv_df = inv_df[
+        inv_df["fc_df_flag"] == "FC"
+    ]
+
+    # Keep only Sellable Inventory
+    inv_df = inv_df[
+        inv_df["inventory_condition_code"] == "SELLABLE"
+    ]
+
+    # Aggregate Inventory
+    inv_df = aggregate_by_asin(
+        inv_df,
+        ["onhand_qty"]
+    )
+
+    return inv_df
+
 st.set_page_config(
     page_title="DRR RCA Engine",
     page_icon="📊",
@@ -123,11 +150,16 @@ if process:
             sales_columns
         )
 
-    st.subheader("Aggregated Preview")
+    with st.spinner("Processing Inventory File..."):
 
-    tab1, tab2 = st.tabs([
+        inv_df = process_inventory(inv_df)
+
+    st.subheader("Processed Data Preview")
+
+    tab1, tab2, tab3 = st.tabs([
         "Unit",
-        "Sales"
+        "Sales",
+        "Inventory"
     ])
 
     with tab1:
@@ -135,3 +167,6 @@ if process:
 
     with tab2:
         st.dataframe(sales_df.head())
+
+    with tab3:
+        st.dataframe(inv_df.head())
