@@ -155,6 +155,58 @@ def process_gv(gv_df):
 
     return gv_df
 
+# ============================================
+# Merge All Data
+# ============================================
+
+def merge_all_data(unit_df, sales_df, gv_df, inv_df):
+
+    # Unit File is our master truth baseline
+    master_df = unit_df.copy()
+
+    # Left Join Sales
+    master_df = master_df.merge(
+        sales_df,
+        on=ASIN_COLUMN,
+        how="left",
+        suffixes=("_Unit", "_Sales")
+    )
+
+    # Left Join Inventory
+    master_df = master_df.merge(
+        inv_df,
+        on=ASIN_COLUMN,
+        how="left"
+    )
+
+    # Left Join the pivoted GV
+    master_df = master_df.merge(
+        gv_df,
+        on=ASIN_COLUMN,
+        how="left"
+    )
+
+    # Force your exact column structure and structural order
+    final_columns = [
+        ASIN_COLUMN,
+        "Wk24_Unit", "Wk25_Unit",
+        "Wk24_Sales", "Wk25_Sales",
+        "onhand_qty",
+        "Previous_MP_GV", "Current_MP_GV",
+        "Previous_P3P_GV", "Current_P3P_GV"
+    ]
+
+    # Generate safety column fallbacks if any file missed matching rows entirely
+    for col in final_columns:
+        if col not in master_df.columns:
+            master_df[col] = 0
+
+    # Clean subset selection & format fill
+    master_df = master_df[final_columns]
+    master_df = master_df.fillna(0)
+
+    return master_df
+
 st.set_page_config(
     page_title="DRR RCA Engine",
     page_icon="📊",
@@ -259,13 +311,23 @@ if process:
 
             gv_df = process_gv(gv_df)
 
+        with st.spinner("Merging All Files..."):
+
+            master_df = merge_all_data(
+                unit_df,
+                sales_df,
+                gv_df,
+                inv_df
+            )
+
         st.subheader("Processed Data Preview")
 
-        tab1, tab2, tab3, tab4 = st.tabs([
+        tab1, tab2, tab3, tab4, tab5 = st.tabs([
             "Unit",
             "Sales",
             "Inventory",
-            "GV"
+            "GV",
+            "Master"
         ])
 
         with tab1:
@@ -279,6 +341,9 @@ if process:
 
         with tab4:
             st.dataframe(gv_df.head())
+
+        with tab5:
+            st.dataframe(master_df.head())
 
     except Exception as e:
         st.error(f"An error occurred during execution: {e}")
