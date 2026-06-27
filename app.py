@@ -577,7 +577,7 @@ if process:
             st.dataframe(gv_df.head())
 
         with tab5:
-            st.dataframe(master_df.head())
+            st.dataframe(master_df.sample(100))
 
         output_df = prepare_output(master_df)
 
