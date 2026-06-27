@@ -176,4 +176,47 @@ if process:
         with st.spinner("Aggregating Unit & Sales Files..."):
 
             # Weekly columns for Unit File
-            unit_columns =
+            unit_columns = [
+                "Wk24",
+                "Wk25"
+            ]
+
+            # Weekly columns for Sales File
+            sales_columns = [
+                "Wk24",
+                "Wk25"
+            ]
+
+            unit_df = aggregate_by_asin(
+                unit_df,
+                unit_columns
+            )
+
+            sales_df = aggregate_by_asin(
+                sales_df,
+                sales_columns
+            )
+
+        with st.spinner("Processing Inventory File..."):
+
+            inv_df = process_inventory(inv_df)
+
+        with st.spinner("Processing GV File..."):
+
+            gv_df = process_gv(gv_df)
+
+        with st.spinner("Merging all files..."):
+
+            master_df = merge_all_data(
+                unit_df,
+                sales_df,
+                gv_df,
+                inv_df
+            )
+
+        st.subheader("Master Data Preview")
+
+        st.dataframe(master_df.head())
+
+    except Exception as e:
+        st.error(f"An error occurred during execution: {e}")
