@@ -241,28 +241,25 @@ def calculate_drr(master_df):
 
 def calculate_asp(master_df):
 
+    # Force conversion to numeric to prevent division zeroes
+    for col in ["Wk24_Sales", "Wk24_Unit", "Wk25_Sales", "Wk25_Unit"]:
+        master_df[col] = pd.to_numeric(master_df[col], errors='coerce').fillna(0)
+
     # Previous Week ASP
-    master_df["Previous_ASP"] = (
-        master_df["Wk24_Sales"]
-        .div(master_df["Wk24_Unit"])
-    )
+    master_df["Previous_ASP"] = master_df["Wk24_Sales"] / master_df["Wk24_Unit"].replace(0, pd.NA)
 
     # Current Week ASP
-    master_df["Current_ASP"] = (
-        master_df["Wk25_Sales"]
-        .div(master_df["Wk25_Unit"])
-    )
+    master_df["Current_ASP"] = master_df["Wk25_Sales"] / master_df["Wk25_Unit"].replace(0, pd.NA)
 
     # ASP % Change
     master_df["ASP_%_Change"] = (
-        (
-            master_df["Current_ASP"] -
-            master_df["Previous_ASP"]
-        )
-        .div(master_df["Previous_ASP"])
-        .replace([float("inf"), float("-inf")], pd.NA)
-        * 100
-    )
+        (master_df["Current_ASP"] - master_df["Previous_ASP"])
+        / master_df["Previous_ASP"].replace(0, pd.NA)
+    ) * 100
+
+    master_df["Previous_ASP"] = master_df["Previous_ASP"].fillna(0)
+    master_df["Current_ASP"] = master_df["Current_ASP"].fillna(0)
+    master_df["ASP_%_Change"] = master_df["ASP_%_Change"].fillna(0)
 
     return master_df
 
@@ -302,10 +299,14 @@ def calculate_conversion(master_df):
 # ============================================
 
 def calculate_inventory(master_df):
-
+    
+    # Force the column to be numeric first
+    master_df["onhand_qty"] = pd.to_numeric(master_df["onhand_qty"], errors='coerce').fillna(0)
+    
+    # Now the comparison will work correctly as integers
     master_df["Inventory_Status"] = master_df["onhand_qty"].apply(
         lambda x: "Low Inventory"
-        if pd.notna(x) and x < 21
+        if x < 21 
         else ""
     )
 
@@ -393,29 +394,6 @@ def generate_remarks(master_df):
     master_df["Final_Remarks"] = master_df["Final_Remarks"].str.rstrip(" |")
 
     return master_df
-
-# ============================================
-# Prepare Final Output
-# ============================================
-
-def prepare_output(master_df):
-
-    output_df = master_df.copy()
-
-    output_df = output_df[
-        [
-            "ASIN",
-            "DRR_%_Change",
-            "ASP_Remarks",
-            "GV_Remarks",
-            "Conversion_Remarks",
-            "Inventory_Remarks",
-            "Manual_Intervention_Required",
-            "Final_Remarks"
-        ]
-    ]
-
-    return output_df
 
 st.set_page_config(
     page_title="DRR RCA Engine",
@@ -579,8 +557,6 @@ if process:
         with tab5:
             st.dataframe(master_df.sample(100))
 
-        output_df = prepare_output(master_df)
-
         # ============================================
         # Download Output
         # ============================================
@@ -588,18 +564,19 @@ if process:
         output = io.BytesIO()
 
         with pd.ExcelWriter(output, engine="xlsxwriter") as writer:
-            output_df.to_excel(
+            # Export the exact master_df shown in the tab
+            master_df.to_excel(
                 writer,
                 index=False,
-                sheet_name="DRR RCA Output"
+                sheet_name="Master Data"
             )
 
         output.seek(0)
 
         st.download_button(
-            label="📥 Download DRR RCA Output",
+            label="📥 Download Master Data Output",
             data=output,
-            file_name="DRR_RCA_Output.xlsx",
+            file_name="Master_Data_Output.xlsx",
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
         )
 
