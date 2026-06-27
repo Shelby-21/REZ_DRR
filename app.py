@@ -107,6 +107,52 @@ def process_gv(gv_df):
         gv_df["Week Type"].notna()
     ]
 
+    # ============================================
+    # Pivot MP GV
+    # ============================================
+
+    mp_gv = gv_df.pivot_table(
+        index=ASIN_COLUMN,
+        columns="Week Type",
+        values="MP GV",
+        aggfunc="sum"
+    ).reset_index()
+
+    mp_gv.columns.name = None
+
+    mp_gv.rename(columns={
+        "Previous Week": "Previous_MP_GV",
+        "Current Week": "Current_MP_GV"
+    }, inplace=True)
+
+    # ============================================
+    # Pivot P3P GV
+    # ============================================
+
+    p3p_gv = gv_df.pivot_table(
+        index=ASIN_COLUMN,
+        columns="Week Type",
+        values="P3P GV",
+        aggfunc="sum"
+    ).reset_index()
+
+    p3p_gv.columns.name = None
+
+    p3p_gv.rename(columns={
+        "Previous Week": "Previous_P3P_GV",
+        "Current Week": "Current_P3P_GV"
+    }, inplace=True)
+
+    # ============================================
+    # Merge both Pivot Tables
+    # ============================================
+
+    gv_df = mp_gv.merge(
+        p3p_gv,
+        on=ASIN_COLUMN,
+        how="outer"
+    )
+
     return gv_df
 
 st.set_page_config(
