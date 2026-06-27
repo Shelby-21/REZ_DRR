@@ -394,6 +394,29 @@ def generate_remarks(master_df):
 
     return master_df
 
+# ============================================
+# Prepare Final Output
+# ============================================
+
+def prepare_output(master_df):
+
+    output_df = master_df.copy()
+
+    output_df = output_df[
+        [
+            "ASIN",
+            "DRR_%_Change",
+            "ASP_Remarks",
+            "GV_Remarks",
+            "Conversion_Remarks",
+            "Inventory_Remarks",
+            "Manual_Intervention_Required",
+            "Final_Remarks"
+        ]
+    ]
+
+    return output_df
+
 st.set_page_config(
     page_title="DRR RCA Engine",
     page_icon="📊",
@@ -555,6 +578,30 @@ if process:
 
         with tab5:
             st.dataframe(master_df.head())
+
+        output_df = prepare_output(master_df)
+
+        # ============================================
+        # Download Output
+        # ============================================
+
+        output = io.BytesIO()
+
+        with pd.ExcelWriter(output, engine="xlsxwriter") as writer:
+            output_df.to_excel(
+                writer,
+                index=False,
+                sheet_name="DRR RCA Output"
+            )
+
+        output.seek(0)
+
+        st.download_button(
+            label="📥 Download DRR RCA Output",
+            data=output,
+            file_name="DRR_RCA_Output.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        )
 
     except Exception as e:
         st.error(f"An error occurred during execution: {e}")
