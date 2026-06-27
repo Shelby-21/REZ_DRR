@@ -311,6 +311,36 @@ def calculate_inventory(master_df):
 
     return master_df
 
+# ============================================
+# Calculate GV Change
+# ============================================
+
+def calculate_gv(master_df):
+
+    # MP GV % Change
+    master_df["MP_GV_%_Change"] = (
+        (
+            master_df["Current_MP_GV"] -
+            master_df["Previous_MP_GV"]
+        )
+        .div(master_df["Previous_MP_GV"])
+        .replace([float("inf"), float("-inf")], pd.NA)
+        * 100
+    )
+
+    # P3P GV % Change
+    master_df["P3P_GV_%_Change"] = (
+        (
+            master_df["Current_P3P_GV"] -
+            master_df["Previous_P3P_GV"]
+        )
+        .div(master_df["Previous_P3P_GV"])
+        .replace([float("inf"), float("-inf")], pd.NA)
+        * 100
+    )
+
+    return master_df
+
 st.set_page_config(
     page_title="DRR RCA Engine",
     page_icon="📊",
@@ -439,6 +469,10 @@ if process:
         with st.spinner("Checking Inventory..."):
 
             master_df = calculate_inventory(master_df)
+
+        with st.spinner("Calculating GV..."):
+
+            master_df = calculate_gv(master_df)
 
         st.subheader("Processed Data Preview")
 
