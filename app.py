@@ -207,6 +207,34 @@ def merge_all_data(unit_df, sales_df, gv_df, inv_df):
 
     return master_df
 
+# ============================================
+# Calculate DRR
+# ============================================
+
+def calculate_drr(master_df):
+
+    # Current Week DRR
+    master_df["Current_DRR"] = (
+        master_df["Wk25_Unit"] / 7
+    )
+
+    # Previous Week DRR
+    master_df["Previous_DRR"] = (
+        master_df["Wk24_Unit"] / 7
+    )
+
+    # DRR % Change
+    master_df["DRR_%_Change"] = (
+        (
+            master_df["Current_DRR"]
+            - master_df["Previous_DRR"]
+        )
+        /
+        master_df["Previous_DRR"]
+    ) * 100
+
+    return master_df
+
 st.set_page_config(
     page_title="DRR RCA Engine",
     page_icon="📊",
@@ -319,6 +347,10 @@ if process:
                 gv_df,
                 inv_df
             )
+
+        with st.spinner("Calculating DRR..."):
+
+            master_df = calculate_drr(master_df)
 
         st.subheader("Processed Data Preview")
 
