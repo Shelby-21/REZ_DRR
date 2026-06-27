@@ -69,38 +69,6 @@ def process_gv(gv_df):
 
     return gv_df
 
-# ============================================
-# Merge All Data
-# ============================================
-
-def merge_all_data(unit_df, sales_df, gv_df, inv_df):
-
-    master_df = unit_df.copy()
-
-    # Merge Sales
-    master_df = master_df.merge(
-        sales_df,
-        on=ASIN_COLUMN,
-        how="left",
-        suffixes=("_Unit", "_Sales")
-    )
-
-    # Merge Inventory
-    master_df = master_df.merge(
-        inv_df,
-        on=ASIN_COLUMN,
-        how="left"
-    )
-
-    # Merge GV
-    master_df = master_df.merge(
-        gv_df,
-        on=ASIN_COLUMN,
-        how="left"
-    )
-
-    return master_df
-
 st.set_page_config(
     page_title="DRR RCA Engine",
     page_icon="📊",
@@ -205,18 +173,26 @@ if process:
 
             gv_df = process_gv(gv_df)
 
-        with st.spinner("Merging all files..."):
+        st.subheader("Processed Data Preview")
 
-            master_df = merge_all_data(
-                unit_df,
-                sales_df,
-                gv_df,
-                inv_df
-            )
+        tab1, tab2, tab3, tab4 = st.tabs([
+            "Unit",
+            "Sales",
+            "Inventory",
+            "GV"
+        ])
 
-        st.subheader("Master Data Preview")
+        with tab1:
+            st.dataframe(unit_df.head())
 
-        st.dataframe(master_df.head())
+        with tab2:
+            st.dataframe(sales_df.head())
+
+        with tab3:
+            st.dataframe(inv_df.head())
+
+        with tab4:
+            st.dataframe(gv_df.head())
 
     except Exception as e:
         st.error(f"An error occurred during execution: {e}")
