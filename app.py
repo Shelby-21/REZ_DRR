@@ -266,6 +266,51 @@ def calculate_asp(master_df):
 
     return master_df
 
+# ============================================
+# Calculate Conversion
+# ============================================
+
+def calculate_conversion(master_df):
+
+    # Previous Week Conversion
+    master_df["Previous_Conversion"] = (
+        master_df["Wk24_Unit"]
+        .div(master_df["Previous_P3P_GV"])
+    )
+
+    # Current Week Conversion
+    master_df["Current_Conversion"] = (
+        master_df["Wk25_Unit"]
+        .div(master_df["Current_P3P_GV"])
+    )
+
+    # Conversion % Change
+    master_df["Conversion_%_Change"] = (
+        (
+            master_df["Current_Conversion"] -
+            master_df["Previous_Conversion"]
+        )
+        .div(master_df["Previous_Conversion"])
+        .replace([float("inf"), float("-inf")], pd.NA)
+        * 100
+    )
+
+    return master_df
+
+# ============================================
+# Calculate Inventory Status
+# ============================================
+
+def calculate_inventory(master_df):
+
+    master_df["Inventory_Status"] = master_df["onhand_qty"].apply(
+        lambda x: "Low Inventory"
+        if pd.notna(x) and x < 21
+        else ""
+    )
+
+    return master_df
+
 st.set_page_config(
     page_title="DRR RCA Engine",
     page_icon="📊",
@@ -387,6 +432,14 @@ if process:
 
             master_df = calculate_asp(master_df)
 
+        with st.spinner("Calculating Conversion..."):
+
+            master_df = calculate_conversion(master_df)
+
+        with st.spinner("Checking Inventory..."):
+
+            master_df = calculate_inventory(master_df)
+
         st.subheader("Processed Data Preview")
 
         tab1, tab2, tab3, tab4, tab5 = st.tabs([
@@ -410,7 +463,7 @@ if process:
             st.dataframe(gv_df.head())
 
         with tab5:
-            st.dataframe(master_df.sample(50))
+            st.dataframe(master_df.head())
 
     except Exception as e:
         st.error(f"An error occurred during execution: {e}")
