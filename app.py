@@ -107,53 +107,40 @@ def process_gv(gv_df):
         gv_df["Week Type"].notna()
     ]
 
-    # ============================================
-    # Pivot MP GV
-    # ============================================
+    return gv_df
 
-    mp_gv = gv_df.pivot_table(
-        index=ASIN_COLUMN,
-        columns="Week Type",
-        values="MP GV",
-        aggfunc="sum"
-    ).reset_index()
+# ============================================
+# Merge All Data
+# ============================================
 
-    mp_gv.columns.name = None
+def merge_all_data(unit_df, sales_df, gv_df, inv_df):
 
-    mp_gv.rename(columns={
-        "Previous Week": "Previous_MP_GV",
-        "Current Week": "Current_MP_GV"
-    }, inplace=True)
+    # Unit File is the Master File
+    master_df = unit_df.copy()
 
-    # ============================================
-    # Pivot P3P GV
-    # ============================================
-
-    p3p_gv = gv_df.pivot_table(
-        index=ASIN_COLUMN,
-        columns="Week Type",
-        values="P3P GV",
-        aggfunc="sum"
-    ).reset_index()
-
-    p3p_gv.columns.name = None
-
-    p3p_gv.rename(columns={
-        "Previous Week": "Previous_P3P_GV",
-        "Current Week": "Current_P3P_GV"
-    }, inplace=True)
-
-    # ============================================
-    # Merge both Pivot Tables
-    # ============================================
-
-    gv_df = mp_gv.merge(
-        p3p_gv,
+    # Merge Sales
+    master_df = master_df.merge(
+        sales_df,
         on=ASIN_COLUMN,
-        how="outer"
+        how="left",
+        suffixes=("_Unit", "_Sales")
     )
 
-    return gv_df
+    # Merge Inventory
+    master_df = master_df.merge(
+        inv_df,
+        on=ASIN_COLUMN,
+        how="left"
+    )
+
+    # Merge GV
+    master_df = master_df.merge(
+        gv_df,
+        on=ASIN_COLUMN,
+        how="left"
+    )
+
+    return master_df
 
 st.set_page_config(
     page_title="DRR RCA Engine",
@@ -259,13 +246,23 @@ if process:
 
             gv_df = process_gv(gv_df)
 
+        with st.spinner("Merging All Files..."):
+
+            master_df = merge_all_data(
+                unit_df,
+                sales_df,
+                gv_df,
+                inv_df
+            )
+
         st.subheader("Processed Data Preview")
 
-        tab1, tab2, tab3, tab4 = st.tabs([
+        tab1, tab2, tab3, tab4, tab5 = st.tabs([
             "Unit",
             "Sales",
             "Inventory",
-            "GV"
+            "GV",
+            "Master"
         ])
 
         with tab1:
@@ -279,6 +276,9 @@ if process:
 
         with tab4:
             st.dataframe(gv_df.head())
+
+        with tab5:
+            st.dataframe(master_df.head())
 
     except Exception as e:
         st.error(f"An error occurred during execution: {e}")
