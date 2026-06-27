@@ -235,6 +235,37 @@ def calculate_drr(master_df):
 
     return master_df
 
+# ============================================
+# Calculate ASP
+# ============================================
+
+def calculate_asp(master_df):
+
+    # Previous Week ASP
+    master_df["Previous_ASP"] = (
+        master_df["Wk24_Sales"]
+        .div(master_df["Wk24_Unit"])
+    )
+
+    # Current Week ASP
+    master_df["Current_ASP"] = (
+        master_df["Wk25_Sales"]
+        .div(master_df["Wk25_Unit"])
+    )
+
+    # ASP % Change
+    master_df["ASP_%_Change"] = (
+        (
+            master_df["Current_ASP"] -
+            master_df["Previous_ASP"]
+        )
+        .div(master_df["Previous_ASP"])
+        .replace([float("inf"), float("-inf")], pd.NA)
+        * 100
+    )
+
+    return master_df
+
 st.set_page_config(
     page_title="DRR RCA Engine",
     page_icon="📊",
@@ -352,6 +383,10 @@ if process:
 
             master_df = calculate_drr(master_df)
 
+        with st.spinner("Calculating ASP..."):
+
+            master_df = calculate_asp(master_df)
+
         st.subheader("Processed Data Preview")
 
         tab1, tab2, tab3, tab4, tab5 = st.tabs([
@@ -363,7 +398,7 @@ if process:
         ])
 
         with tab1:
-            st.dataframe(unit_df.sample(20))
+            st.dataframe(unit_df.head())
 
         with tab2:
             st.dataframe(sales_df.head())
@@ -375,7 +410,7 @@ if process:
             st.dataframe(gv_df.head())
 
         with tab5:
-            st.dataframe(master_df.sample(50))
+            st.dataframe(master_df.head())
 
     except Exception as e:
         st.error(f"An error occurred during execution: {e}")
