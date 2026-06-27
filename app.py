@@ -363,7 +363,7 @@ if process:
         ])
 
         with tab1:
-            st.dataframe(unit_df.head())
+            st.dataframe(unit_df.sample(20))
 
         with tab2:
             st.dataframe(sales_df.head())
@@ -375,7 +375,7 @@ if process:
             st.dataframe(gv_df.head())
 
         with tab5:
-            st.dataframe(master_df.head())
+            st.dataframe(master_df.sample(50))
 
     except Exception as e:
         st.error(f"An error occurred during execution: {e}")
