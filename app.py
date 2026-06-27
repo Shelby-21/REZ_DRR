@@ -55,6 +55,20 @@ def process_inventory(inv_df):
 
     return inv_df
 
+# ============================================
+# Process GV File
+# ============================================
+
+def process_gv(gv_df):
+
+    # Clean column names
+    gv_df.columns = gv_df.columns.str.strip()
+
+    # Clean ASIN values
+    gv_df[ASIN_COLUMN] = gv_df[ASIN_COLUMN].astype(str).str.strip()
+
+    return gv_df
+
 st.set_page_config(
     page_title="DRR RCA Engine",
     page_icon="📊",
@@ -121,52 +135,3 @@ if process:
 
         # -----------------------------
         # Read Inventory File
-        # -----------------------------
-        inv_df = pd.read_excel(inv_file)
-
-    st.success("All files loaded successfully!")
-
-    with st.spinner("Aggregating Unit & Sales Files..."):
-
-        # Weekly columns for Unit File
-        unit_columns = [
-            "Wk24",
-            "Wk25"
-        ]
-
-        # Weekly columns for Sales File
-        sales_columns = [
-            "Wk24",
-            "Wk25"
-        ]
-
-        unit_df = aggregate_by_asin(
-            unit_df,
-            unit_columns
-        )
-
-        sales_df = aggregate_by_asin(
-            sales_df,
-            sales_columns
-        )
-
-    with st.spinner("Processing Inventory File..."):
-
-        inv_df = process_inventory(inv_df)
-
-    st.subheader("Processed Data Preview")
-
-    tab1, tab2, tab3 = st.tabs([
-        "Unit",
-        "Sales",
-        "Inventory"
-    ])
-
-    with tab1:
-        st.dataframe(unit_df.head())
-
-    with tab2:
-        st.dataframe(sales_df.head())
-
-    with tab3:
-        st.dataframe(inv_df.head())
