@@ -303,7 +303,6 @@ def calculate_conversion(master_df):
 
 def calculate_inventory(master_df):
 
-    # Low Inventory rule changed to < 21
     master_df["Inventory_Status"] = master_df["onhand_qty"].apply(
         lambda x: "Low Inventory"
         if pd.notna(x) and x < 21
@@ -434,23 +433,23 @@ col1, col2 = st.columns(2)
 with col1:
     unit_file = st.file_uploader(
         "Upload WoW Unit File",
-        type=["csv", "xlsx"]
+        type=["xlsx"]
     )
 
     sales_file = st.file_uploader(
         "Upload WoW Sales File",
-        type=["csv", "xlsx"]
+        type=["xlsx"]
     )
 
 with col2:
     gv_file = st.file_uploader(
         "Upload GV File",
-        type=["csv", "xlsx"]
+        type=["xlsx"]
     )
 
     inv_file = st.file_uploader(
         "Upload Inventory File",
-        type=["csv", "xlsx"]
+        type=["xlsx"]
     )
 
 st.divider()
@@ -468,32 +467,25 @@ if process:
     try:
         with st.spinner("Reading uploaded files..."):
 
-            # Helper function to load with calamine engine fallback or read native CSV
-            def smart_read(file_obj):
-                if file_obj.name.endswith(".csv"):
-                    return pd.read_csv(file_obj)
-                else:
-                    return pd.read_excel(file_obj, engine="calamine")
-
             # -----------------------------
             # Read WoW Unit File
             # -----------------------------
-            unit_df = smart_read(unit_file)
+            unit_df = pd.read_excel(unit_file)
 
             # -----------------------------
             # Read WoW Sales File
             # -----------------------------
-            sales_df = smart_read(sales_file)
+            sales_df = pd.read_excel(sales_file)
 
             # -----------------------------
             # Read GV File
             # -----------------------------
-            gv_df = smart_read(gv_file)
+            gv_df = pd.read_excel(gv_file)
 
             # -----------------------------
             # Read Inventory File
             # -----------------------------
-            inv_df = smart_read(inv_file)
+            inv_df = pd.read_excel(inv_file)
 
         st.success("All files loaded successfully!")
 
