@@ -68,21 +68,21 @@ def process_gv(gv_df):
     gv_df[ASIN_COLUMN] = gv_df[ASIN_COLUMN].astype(str).str.strip()
 
     # Convert Week Ending into datetime
-    gv_df["Week Ending"] = pd.to_datetime(
-        gv_df["Week Ending"],
+    gv_df["Week ending"] = pd.to_datetime(
+        gv_df["Week ending"],
         dayfirst=True,
         errors="coerce"
     )
 
     # Remove rows with invalid dates
-    gv_df = gv_df.dropna(subset=["Week Ending"])
+    gv_df = gv_df.dropna(subset=["Week ending"])
 
     # Sort by Week Ending
-    gv_df = gv_df.sort_values("Week Ending")
+    gv_df = gv_df.sort_values("Week ending")
 
     # Get the latest two unique weeks
     latest_weeks = (
-        gv_df["Week Ending"]
+        gv_df["Week ending"]
         .drop_duplicates()
         .sort_values()
         .tail(2)
@@ -96,7 +96,7 @@ def process_gv(gv_df):
     current_week = latest_weeks[1]
 
     # Create a readable week label
-    gv_df["Week Type"] = gv_df["Week Ending"].apply(
+    gv_df["Week Type"] = gv_df["Week ending"].apply(
         lambda x: "Previous Week" if x == previous_week else
                   "Current Week" if x == current_week else
                   None
