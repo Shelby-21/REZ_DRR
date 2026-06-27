@@ -55,6 +55,20 @@ def process_inventory(inv_df):
 
     return inv_df
 
+# ============================================
+# Process GV File
+# ============================================
+
+def process_gv(gv_df):
+
+    # Clean column names
+    gv_df.columns = gv_df.columns.str.strip()
+
+    # Clean ASIN values
+    gv_df[ASIN_COLUMN] = gv_df[ASIN_COLUMN].astype(str).str.strip()
+
+    return gv_df
+
 st.set_page_config(
     page_title="DRR RCA Engine",
     page_icon="📊",
@@ -155,12 +169,17 @@ if process:
 
             inv_df = process_inventory(inv_df)
 
+        with st.spinner("Processing GV File..."):
+
+            gv_df = process_gv(gv_df)
+
         st.subheader("Processed Data Preview")
 
-        tab1, tab2, tab3 = st.tabs([
+        tab1, tab2, tab3, tab4 = st.tabs([
             "Unit",
             "Sales",
-            "Inventory"
+            "Inventory",
+            "GV"
         ])
 
         with tab1:
@@ -171,6 +190,9 @@ if process:
 
         with tab3:
             st.dataframe(inv_df.head())
+
+        with tab4:
+            st.dataframe(gv_df.head())
 
     except Exception as e:
         st.error(f"An error occurred during execution: {e}")
