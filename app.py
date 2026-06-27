@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 import io
+
 ASIN_COLUMN = "ASIN"
 
 # ============================================
@@ -27,6 +28,28 @@ def aggregate_by_asin(df, value_columns, asin_column=ASIN_COLUMN):
     )
 
     return df
+
+# ============================================
+# Detect Week Columns
+# ============================================
+
+def get_week_columns(df):
+
+    week_columns = sorted(
+        [
+            col for col in df.columns
+            if col.startswith("Wk")
+        ],
+        key=lambda x: int(x.replace("Wk", ""))
+    )
+
+    if len(week_columns) < 2:
+        raise ValueError("At least two week columns are required.")
+
+    previous_week = week_columns[-2]
+    current_week = week_columns[-1]
+
+    return previous_week, current_week
 
 # ============================================
 # Process Inventory File
@@ -159,7 +182,7 @@ def process_gv(gv_df):
 # Merge All Data
 # ============================================
 
-def merge_all_data(unit_df, sales_df, gv_df, inv_df):
+def merge_all_data(unit_df, sales_df, gv_df, inv_df, previous_week, current_week):
 
     # Unit File is our master truth baseline
     master_df = unit_df.copy()
@@ -186,14 +209,18 @@ def merge_all_data(unit_df, sales_df, gv_df, inv_df):
         how="left"
     )
 
-    # Force your exact column structure and structural order
+    # Force your exact column structure and structural order dynamically
     final_columns = [
         ASIN_COLUMN,
-        "Wk24_Unit", "Wk25_Unit",
-        "Wk24_Sales", "Wk25_Sales",
+        f"{previous_week}_Unit",
+        f"{current_week}_Unit",
+        f"{previous_week}_Sales",
+        f"{current_week}_Sales",
         "onhand_qty",
-        "Previous_MP_GV", "Current_MP_GV",
-        "Previous_P3P_GV", "Current_P3P_GV"
+        "Previous_MP_GV",
+        "Current_MP_GV",
+        "Previous_P3P_GV",
+        "Current_P3P_GV"
     ]
 
     # Generate safety column fallbacks if any file missed matching rows entirely
@@ -203,7 +230,6 @@ def merge_all_data(unit_df, sales_df, gv_df, inv_df):
 
     # Clean subset selection & format fill
     master_df = master_df[final_columns]
-    master_df = master_df.fillna(0)
 
     return master_df
 
@@ -211,16 +237,16 @@ def merge_all_data(unit_df, sales_df, gv_df, inv_df):
 # Calculate DRR
 # ============================================
 
-def calculate_drr(master_df):
+def calculate_drr(master_df, previous_week, current_week):
 
     # Current Week DRR
     master_df["Current_DRR"] = (
-        master_df["Wk25_Unit"] / 7
+        master_df[f"{current_week}_Unit"] / 7
     )
 
     # Previous Week DRR
     master_df["Previous_DRR"] = (
-        master_df["Wk24_Unit"] / 7
+        master_df[f"{previous_week}_Unit"] / 7
     )
 
     # DRR % Change
@@ -229,8 +255,7 @@ def calculate_drr(master_df):
             master_df["Current_DRR"]
             - master_df["Previous_DRR"]
         )
-        /
-        master_df["Previous_DRR"]
+        .div(master_df["Previous_DRR"].replace(0, pd.NA))
     ) * 100
 
     return master_df
@@ -239,17 +264,21 @@ def calculate_drr(master_df):
 # Calculate ASP
 # ============================================
 
-def calculate_asp(master_df):
+def calculate_asp(master_df, previous_week, current_week):
 
     # Force conversion to numeric to prevent division zeroes
-    for col in ["Wk24_Sales", "Wk24_Unit", "Wk25_Sales", "Wk25_Unit"]:
+    cols_to_convert = [
+        f"{previous_week}_Sales", f"{previous_week}_Unit",
+        f"{current_week}_Sales", f"{current_week}_Unit"
+    ]
+    for col in cols_to_convert:
         master_df[col] = pd.to_numeric(master_df[col], errors='coerce').fillna(0)
 
     # Previous Week ASP
-    master_df["Previous_ASP"] = master_df["Wk24_Sales"] / master_df["Wk24_Unit"].replace(0, pd.NA)
+    master_df["Previous_ASP"] = master_df[f"{previous_week}_Sales"] / master_df[f"{previous_week}_Unit"].replace(0, pd.NA)
 
     # Current Week ASP
-    master_df["Current_ASP"] = master_df["Wk25_Sales"] / master_df["Wk25_Unit"].replace(0, pd.NA)
+    master_df["Current_ASP"] = master_df[f"{current_week}_Sales"] / master_df[f"{current_week}_Unit"].replace(0, pd.NA)
 
     # ASP % Change
     master_df["ASP_%_Change"] = (
@@ -267,18 +296,18 @@ def calculate_asp(master_df):
 # Calculate Conversion
 # ============================================
 
-def calculate_conversion(master_df):
+def calculate_conversion(master_df, previous_week, current_week):
 
     # Previous Week Conversion
     master_df["Previous_Conversion"] = (
-        master_df["Wk24_Unit"]
-        .div(master_df["Previous_P3P_GV"])
+        master_df[f"{previous_week}_Unit"]
+        .div(master_df["Previous_P3P_GV"].replace(0, pd.NA))
     )
 
     # Current Week Conversion
     master_df["Current_Conversion"] = (
-        master_df["Wk25_Unit"]
-        .div(master_df["Current_P3P_GV"])
+        master_df[f"{current_week}_Unit"]
+        .div(master_df["Current_P3P_GV"].replace(0, pd.NA))
     )
 
     # Conversion % Change
@@ -287,7 +316,7 @@ def calculate_conversion(master_df):
             master_df["Current_Conversion"] -
             master_df["Previous_Conversion"]
         )
-        .div(master_df["Previous_Conversion"])
+        .div(master_df["Previous_Conversion"].replace(0,pd.NA))
         .replace([float("inf"), float("-inf")], pd.NA)
         * 100
     )
@@ -324,7 +353,7 @@ def calculate_gv(master_df):
             master_df["Current_MP_GV"] -
             master_df["Previous_MP_GV"]
         )
-        .div(master_df["Previous_MP_GV"])
+        .div(master_df["Previous_MP_GV"].replace(0,pd.NA))
         .replace([float("inf"), float("-inf")], pd.NA)
         * 100
     )
@@ -335,7 +364,7 @@ def calculate_gv(master_df):
             master_df["Current_P3P_GV"] -
             master_df["Previous_P3P_GV"]
         )
-        .div(master_df["Previous_P3P_GV"])
+        .div(master_df["Previous_P3P_GV"].replace(0,pd.NA))
         .replace([float("inf"), float("-inf")], pd.NA)
         * 100
     )
@@ -372,9 +401,9 @@ def generate_remarks(master_df):
     master_df["Manual_Intervention_Required"] = ""
 
     missing_data = (
-        master_df["Previous_P3P_GV"].isna() |
-        master_df["Current_P3P_GV"].isna() |
-        master_df["onhand_qty"].isna()
+        (master_df["Previous_P3P_GV"] == 0) |
+        (master_df["Current_P3P_GV"] == 0) |
+        (master_df["onhand_qty"] == 0)
     )
 
     master_df.loc[
@@ -469,16 +498,17 @@ if process:
 
         with st.spinner("Aggregating Unit & Sales Files..."):
 
-            # Weekly columns for Unit File
+            # Detect latest two weeks automatically
+            previous_week, current_week = get_week_columns(unit_df)
+
             unit_columns = [
-                "Wk24",
-                "Wk25"
+                previous_week,
+                current_week
             ]
 
-            # Weekly columns for Sales File
             sales_columns = [
-                "Wk24",
-                "Wk25"
+                previous_week,
+                current_week
             ]
 
             unit_df = aggregate_by_asin(
@@ -505,20 +535,22 @@ if process:
                 unit_df,
                 sales_df,
                 gv_df,
-                inv_df
+                inv_df,
+                previous_week,
+                current_week
             )
 
         with st.spinner("Calculating DRR..."):
 
-            master_df = calculate_drr(master_df)
+            master_df = calculate_drr(master_df, previous_week, current_week)
 
         with st.spinner("Calculating ASP..."):
 
-            master_df = calculate_asp(master_df)
+            master_df = calculate_asp(master_df, previous_week, current_week)
 
         with st.spinner("Calculating Conversion..."):
 
-            master_df = calculate_conversion(master_df)
+            master_df = calculate_conversion(master_df, previous_week, current_week)
 
         with st.spinner("Checking Inventory..."):
 
