@@ -341,6 +341,59 @@ def calculate_gv(master_df):
 
     return master_df
 
+# ============================================
+# Decision Engine
+# ============================================
+
+def generate_remarks(master_df):
+
+    # ASP Remarks
+    master_df["ASP_Remarks"] = master_df["ASP_%_Change"].apply(
+        lambda x: "ASP Increased | " if pd.notna(x) and x > 0 else ""
+    )
+
+    # GV Remarks
+    master_df["GV_Remarks"] = master_df["P3P_GV_%_Change"].apply(
+        lambda x: "GV Decreased | " if pd.notna(x) and x < 0 else ""
+    )
+
+    # Conversion Remarks
+    master_df["Conversion_Remarks"] = master_df["Conversion_%_Change"].apply(
+        lambda x: "Conversion Decreased | " if pd.notna(x) and x < 0 else ""
+    )
+
+    # Inventory Remarks
+    master_df["Inventory_Remarks"] = master_df["Inventory_Status"].apply(
+        lambda x: "Low Inventory | " if x == "Low Inventory" else ""
+    )
+
+    # Manual Intervention
+    master_df["Manual_Intervention_Required"] = ""
+
+    missing_data = (
+        master_df["Previous_P3P_GV"].isna() |
+        master_df["Current_P3P_GV"].isna() |
+        master_df["onhand_qty"].isna()
+    )
+
+    master_df.loc[
+        missing_data,
+        "Manual_Intervention_Required"
+    ] = "Supporting data missing"
+
+    # Final Remarks
+    master_df["Final_Remarks"] = (
+        master_df["ASP_Remarks"] +
+        master_df["GV_Remarks"] +
+        master_df["Conversion_Remarks"] +
+        master_df["Inventory_Remarks"]
+    )
+
+    # Remove trailing separator
+    master_df["Final_Remarks"] = master_df["Final_Remarks"].str.rstrip(" |")
+
+    return master_df
+
 st.set_page_config(
     page_title="DRR RCA Engine",
     page_icon="📊",
@@ -474,6 +527,10 @@ if process:
 
             master_df = calculate_gv(master_df)
 
+        with st.spinner("Generating Remarks..."):
+
+            master_df = generate_remarks(master_df)
+
         st.subheader("Processed Data Preview")
 
         tab1, tab2, tab3, tab4, tab5 = st.tabs([
@@ -497,7 +554,7 @@ if process:
             st.dataframe(gv_df.head())
 
         with tab5:
-            st.dataframe(master_df.sample(100))
+            st.dataframe(master_df.head())
 
     except Exception as e:
         st.error(f"An error occurred during execution: {e}")
